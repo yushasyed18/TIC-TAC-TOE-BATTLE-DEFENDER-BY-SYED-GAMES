@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Syed Games</title>
+<style>
+  :root{
+    --accent:#0b63a3;
+    --bg-dark:#050505;
+  }
+  html,body{height:100%;margin:0;background:var(--bg-dark);font-family:"Times New Roman",serif;font-style:italic;color:#fff;overflow-x:hidden}
+  .app{min-height:100vh;padding:18px;display:flex;flex-direction:column;align-items:center;box-sizing:border-box}
+  h1{margin:6px 0 12px 0;font-size:20px}
+  .tabs{display:flex;gap:8px;margin-bottom:12px}
+  .tab-btn{padding:8px 12px;border-radius:8px;border:0;background:var(--accent);color:#fff;cursor:pointer}
+  .tab-btn.inactive{background:rgba(255,255,255,0.06);color:#ddd}
+  .card{width:100%;max-width:980px;background:rgba(255,255,255,0.02);border-radius:12px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,0.6)}
+  button,input,select{font-size:15px;padding:8px;border-radius:6px;border:0;cursor:pointer;font-family:"Times New Roman",serif;font-style:italic}
+  button.big{padding:10px 14px}
+  .hidden{display:none}
+  .center{display:flex;align-items:center;justify-content:center}
+  .muted{color:#dbeeff;opacity:0.95}
+  .small{font-size:13px;color:#e6f0ff}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center}
+
+  /* TIC TAC */
+  .tic-full{position:relative;overflow:hidden;border-radius:10px;background:#000;padding:6px 12px 18px 12px;min-height:360px}
+  canvas.tic-bg{position:absolute;left:0;top:0;width:100%;height:100%;z-index:0;opacity:0.62;pointer-events:none}
+  .tic-ui{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:10px;padding-top:8px}
+  .tttBoard{display:grid;grid-template-columns:repeat(3,100px);gap:8px;margin-top:8px}
+  .tttCell{width:100px;height:100px;background:rgba(255,255,255,0.03);border:2px solid rgba(255,255,255,0.06);
+    display:flex;align-items:center;justify-content:center;font-size:2.4rem;color:#fff;border-radius:8px;cursor:pointer;user-select:none}
+  .tttCell.taken{cursor:not-allowed}
+  .status{font-style:italic;color:#dbeeff}
+  .err{color:#ffb3b3;font-weight:bold;margin-top:6px}
+
+  /* BATTLE */
+  .battle-full{position:relative;border-radius:10px;padding:12px;background:linear-gradient(180deg,#071019,#00121a)}
+  .canvas-wrap{display:flex;flex-direction:column;align-items:center}
+  canvas.battle-canvas{border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.45)}
+  .hud{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .controls{display:flex;flex-direction:column;gap:8px;align-items:center;margin-top:8px}
+  @media (max-width:720px){
+    .tttBoard{grid-template-columns:repeat(3,72px)}
+    .tttCell{width:72px;height:72px;font-size:1.9rem}
+    canvas.tic-bg{height:320px}
+    canvas.battle-canvas{width:320px;height:220px}
+  }
+
+  footer{margin-top:18px;color:#aebedc;font-size:13px}
+</style>
+</head>
+<body>
+  <div class="app">
+    <h1>🎮 Games by SYED MUHAMMAD YUSHA</h1>
+
+    <div class="tabs">
+      <button id="tabTic" class="tab-btn">Tic Tac</button>
+      <button id="tabBattle" class="tab-btn inactive">Battle Defender</button>
+    </div>
+
+    <!-- TIC TAC CARD -->
+    <div id="ticCard" class="card tic-full">
+      <canvas id="ticBg" class="tic-bg" width="960" height="360" aria-hidden="true"></canvas>
+
+      <div class="tic-ui">
+        <!-- SINGLE FORM -->
+        <div id="ticForm" class="form-box center" style="flex-direction:column;gap:8px;max-width:760px;">
+          <div class="title-small muted" style="font-weight:bold">Tic Tac — Fill details (all required)</div>
+          <div class="row">
+            <input id="ticPlayer" placeholder="Your name (Player X)" style="min-width:200px"/>
+            <input id="ticOpponent" placeholder="Opponent name (leave blank = Computer for PvC)" style="min-width:200px"/>
+          </div>
+
+          <div class="row">
+            <label class="small" style="align-self:center">Mode:</label>
+            <select id="ticMode" style="min-width:140px">
+              <option value="pvp">Player vs Player</option>
+              <option value="pvc">Player vs Computer</option>
+            </select>
+
+            <label class="small" style="align-self:center">Difficulty:</label>
+            <select id="ticDiff" style="min-width:120px">
+              <option value="easy">Easy</option>
+              <option value="medium" selected>Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+
+            <label class="small" style="align-self:center">Who starts:</label>
+            <select id="ticStarter" style="min-width:120px">
+              <option value="player">Player (X)</option>
+              <option value="opponent">Opponent (O)</option>
+            </select>
+
+            <label class="small" style="align-self:center">Platform:</label>
+            <select id="ticPlatform" style="min-width:120px">
+              <option value="pc">PC</option>
+              <option value="mobile">Mobile</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <button id="ticStart" class="big">Start Game →</button>
+            <button id="ticResetForm" class="big">Reset</button>
+          </div>
+          <div id="ticErr" class="err hidden">Please fill full form first!</div>
+        </div>
+
+        <!-- GAME AREA (hidden until start) -->
+        <div id="ticGameArea" class="hidden" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+          <div id="ticStatus" class="status">—</div>
+          <div id="tttBoard" class="tttBoard" role="grid" aria-label="Tic Tac board"></div>
+          <div class="row">
+            <button id="ticRestartBtn" class="big">Restart (choose starter)</button>
+            <button id="ticBackMenu" class="big">Back to Menu</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BATTLE CARD -->
+    <div id="battleCard" class="card battle-full hidden">
+      <div class="title-small muted" style="font-weight:bold">Battle Defender — Fill details (all required)</div>
+
+      <div id="bdForm" class="form-box center" style="max-width:760px;gap:8px">
+        <div class="row">
+          <input id="bdName" placeholder="Your name" style="min-width:200px"/>
+          <input id="bdAge" type="number" placeholder="Age (6+)" style="min-width:120px"/>
+          <select id="bdType" style="min-width:140px">
+            <option value="">Category</option>
+            <option>Child</option><option>Adult</option><option>Old</option>
+          </select>
+          <select id="bdPlatform" style="min-width:120px">
+            <option value="pc">PC</option><option value="mobile">Mobile</option>
+          </select>
+        </div>
+        <div class="row">
+          <button id="bdStart" class="big">Start Game →</button>
+          <button id="bdReset" class="big">Reset</button>
+        </div>
+        <div id="bdErr" class="err hidden">Please fill full form first (and age ≥ 6).</div>
+      </div>
+
+      <!-- Game area -->
+      <div id="bdArea" class="hidden">
+        <div class="hud">
+          <div>Player: <span id="bdNameShow"></span></div>
+          <div>Score: <span id="bdScore">0</span></div>
+          <div>Health: <span id="bdHealth">100</span></div>
+          <div>Level: <span id="bdLevel">1</span></div>
+          <div><button id="bdPause" class="big">Pause</button></div>
+          <div><button id="bdRestartBtn" class="big">Restart</button></div>
+          <div><button id="bdBackMenu" class="big">Back to Menu</button></div>
+        </div>
+
+        <div class="canvas-wrap">
+          <canvas id="bdCanvas" class="battle-canvas" width="820" height="360"></canvas>
+          <div id="bdMobileControls" class="controls hidden">
+            <div class="row"><button id="mbUp" class="big">Up</button></div>
+            <div class="row"><button id="mbLeft" class="big">Left</button><button id="mbShoot" class="big">Shoot</button><button id="mbRight" class="big">Right</button></div>
+            <div class="row"><button id="mbDown" class="big">Down</button><button id="mbTeamShoot" class="big">Team Shoot (E)</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>Made by Syed Muhammad Yusha</footer>
+  </div>
+
+<script>
+/* =========================
+  Helpers + audio beep
+  ========================= */
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+function ensureAudio(){ if(!audioCtx && AudioCtx) audioCtx = new AudioCtx(); }
+function beep(freq=880, time=0.05){ try{ ensureAudio(); if(!audioCtx) return; const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type='sine'; o.frequency.value=freq; g.gain.value=0.0025; o.connect(g); g.connect(audioCtx.destination); o.start(); setTimeout(()=> o.stop(), time*1000);}catch(e){} }
+
+/* =========================
+  Tab switching
+  ========================= */
+const tabTic = document.getElementById('tabTic'), tabBattle = document.getElementById('tabBattle');
+const ticCard = document.getElementById('ticCard'), battleCard = document.getElementById('battleCard');
+tabTic.addEventListener('click', ()=>{ ticCard.classList.remove('hidden'); battleCard.classList.add('hidden'); tabTic.classList.remove('inactive'); tabBattle.classList.add('inactive'); });
+tabBattle.addEventListener('click', ()=>{ battleCard.classList.remove('hidden'); ticCard.classList.add('hidden'); tabBattle.classList.remove('inactive'); tabTic.classList.add('inactive'); });
+tabTic.click();
+
+/* =========================
+  TIC TAC (fixed)
+  ========================= */
+(() => {
+  const ticBg = document.getElementById('ticBg'), bgCtx = ticBg.getContext('2d');
+  const ticForm = document.getElementById('ticForm'), ticGameArea = document.getElementById('ticGameArea');
+  const ticPlayer = document.getElementById('ticPlayer'), ticOpponent = document.getElementById('ticOpponent');
+  const ticMode = document.getElementById('ticMode'), ticDiff = document.getElementById('ticDiff'), ticStarter = document.getElementById('ticStarter'), ticPlatform = document.getElementById('ticPlatform');
+  const ticStartBtn = document.getElementById('ticStart'), ticResetForm = document.getElementById('ticResetForm');
+  const ticErr = document.getElementById('ticErr');
+  const boardEl = document.getElementById('tttBoard'), statusEl = document.getElementById('ticStatus');
+  const ticRestartBtn = document.getElementById('ticRestartBtn'), ticBackMenu = document.getElementById('ticBackMenu');
+
+  let board = Array(9).fill(''), current='X', active=false, mode='pvp', diff='medium', p1='SYED', p2='Computer', starter='X';
+  let bgItems=[], bgAnim=null;
+
+  function fitBg(){ const rect = ticBg.parentElement.getBoundingClientRect(); const w = Math.max(560, Math.min(1100, rect.width - 20)); const h = (ticPlatform.value === 'mobile') ? 180 : 360; ticBg.width = w; ticBg.height = h; }
+  window.addEventListener('resize', fitBg); fitBg();
+
+  function updateDiffVisibility(){ ticDiff.style.display = ticMode.value === 'pvc' ? 'inline-block' : 'none'; }
+  ticMode.addEventListener('change', updateDiffVisibility); updateDiffVisibility();
+
+  function initBg(){ bgItems=[]; const w=ticBg.width,h=ticBg.height; for(let i=0;i<16;i++){ bgItems.push({ type: Math.random()>0.5?'X':'O', x:Math.random()*w, y:Math.random()*h, vx:(Math.random()-0.5)*0.6, vy:(Math.random()-0.2)*0.4, size:12+Math.random()*48, rot:Math.random()*Math.PI*2, vr:(Math.random()-0.5)*0.04}); } }
+  function drawBg(){ const w=ticBg.width,h=ticBg.height; bgCtx.clearRect(0,0,w,h); bgCtx.fillStyle='#000'; bgCtx.fillRect(0,0,w,h); for(let it of bgItems){ it.x+=it.vx; it.y+=it.vy; it.rot+=it.vr; if(it.x < -80) it.x = w+40; if(it.x > w+80) it.x = -40; if(it.y < -60) it.y = h+40; if(it.y > h+60) it.y = -40; bgCtx.save(); bgCtx.translate(it.x,it.y); bgCtx.rotate(it.rot); if(it.type==='X'){ bgCtx.strokeStyle='rgba(255,80,80,0.95)'; bgCtx.lineWidth=Math.max(2,it.size*0.1); bgCtx.beginPath(); bgCtx.moveTo(-it.size/2,-it.size/2); bgCtx.lineTo(it.size/2,it.size/2); bgCtx.moveTo(it.size/2,-it.size/2); bgCtx.lineTo(-it.size/2,it.size/2); bgCtx.stroke(); } else { bgCtx.strokeStyle='rgba(100,255,120,0.95)'; bgCtx.lineWidth=Math.max(2,it.size*0.08); bgCtx.beginPath(); bgCtx.arc(0,0,it.size/2,0,Math.PI*2); bgCtx.stroke(); } bgCtx.restore(); } }
+  function animateBg(){ drawBg(); bgAnim = requestAnimationFrame(animateBg); }
+  function stopBg(){ if(bgAnim){ cancelAnimationFrame(bgAnim); bgAnim=null; bgCtx.clearRect(0,0,ticBg.width,ticBg.height); } }
+
+  function validateForm(){ const player = ticPlayer.value.trim(); const opp = ticOpponent.value.trim(); if(!player) return false; if(ticMode.value === 'pvp' && !opp) return false; if(!ticStarter.value) return false; return true; }
+
+  ticStartBtn.addEventListener('click', ()=>{
+    ticErr.classList.add('hidden');
+    if(!validateForm()){ ticErr.classList.remove('hidden'); ticErr.textContent='Please fill full form first!'; return; }
+    mode = ticMode.value; diff = ticDiff.value; p1 = ticPlayer.value.trim() || 'SYED'; p2 = ticOpponent.value.trim() || (mode==='pvc'?'Computer':'OPPONENT'); starter = (ticStarter.value==='player')?'X':'O';
+    fitBg(); initBg(); if(!bgAnim) animateBg();
+    startGame();
+  });
+
+  ticResetForm.addEventListener('click', ()=>{ ticPlayer.value=''; ticOpponent.value=''; ticMode.value='pvp'; ticDiff.value='medium'; ticStarter.value='player'; ticPlatform.value='pc'; updateDiffVisibility(); });
+
+  function startGame(){
+    // Hide form fully (display none) so background is visible behind (canvas is full)
+    ticForm.style.display = 'none';
+    ticGameArea.classList.remove('hidden');
+    board = Array(9).fill(''); current = starter === 'X' ? 'X' : 'O'; active = true;
+    boardEl.innerHTML = '';
+    for(let i=0;i<9;i++){ const cell = document.createElement('div'); cell.className='tttCell'; cell.dataset.i=i; cell.addEventListener('click', ()=> onCell(i)); boardEl.appendChild(cell); }
+    updateStatus();
+    if(mode==='pvc' && current==='O') setTimeout(computerTurn, 450);
+  }
+
+  function updateStatus(){ if(!active){ statusEl.textContent='Match over'; return; } statusEl.textContent = `${current==='X'?p1:p2}'s turn (${current})`; }
+
+  function onCell(i){
+    if(!active || board[i] !== '') return;
+    board[i] = current; boardEl.children[i].textContent = current; boardEl.children[i].classList.add('taken'); beep(880,0.05);
+    if(checkWin(board)){ active=false; statusEl.textContent = `🏆 ${current==='X'?p1:p2} Wins!`; beep(440,0.12); setTimeout(()=>beep(660,0.1),130); stopBgAfterDelay(); return; }
+    if(board.every(v=>v!=='')){ active=false; statusEl.textContent="It's a Draw!"; stopBgAfterDelay(); return; }
+    current = current === 'X' ? 'O' : 'X'; updateStatus();
+    if(mode==='pvc' && current==='O') setTimeout(computerTurn, 320);
+  }
+
+  function stopBgAfterDelay(){ setTimeout(()=>stopBg(), 700); }
+
+  function checkWin(bd){
+    const W=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    for(const [a,b,c] of W) if(bd[a] && bd[a]===bd[b] && bd[a]===bd[c]) return true; return false;
+  }
+
+  // AI
+  function computerTurn(){
+    const empty = board.map((v,i)=> v===''?i:null).filter(v=>v!==null);
+    if(empty.length===0) return;
+    let move=null;
+    if(diff==='easy'){ move = empty[Math.floor(Math.random()*empty.length)]; }
+    else if(diff==='medium'){ if(Math.random()<0.5) move = findWinOrBlock('O') || findWinOrBlock('X') || empty[Math.floor(Math.random()*empty.length)]; else move = empty[Math.floor(Math.random()*empty.length)]; }
+    else { if(Math.random() < 0.12) move = empty[Math.floor(Math.random()*empty.length)]; else move = minimaxRoot(board,'O'); }
+    if(move===null) move = empty[Math.floor(Math.random()*empty.length)];
+    board[move] = 'O'; boardEl.children[move].textContent='O'; boardEl.children[move].classList.add('taken'); beep(880,0.05);
+    if(checkWin(board)){ active=false; statusEl.textContent='Computer Wins!'; beep(440,0.12); setTimeout(()=>beep(660,0.1),130); stopBgAfterDelay(); return; }
+    if(board.every(v=>v!=='')){ active=false; statusEl.textContent="It's a Draw!"; stopBgAfterDelay(); return; }
+    current='X'; updateStatus();
+  }
+  function findWinOrBlock(ch){ for(let i=0;i<9;i++){ if(board[i]===''){ board[i]=ch; if(checkWin(board)){ board[i]=''; return i;} board[i]=''; }} return null; }
+  function minimaxRoot(bd, playerChar){ const avail=bd.map((v,i)=> v===''?i:null).filter(v=>v!==null); let best=-Infinity, bestMove=null; for(const i of avail){ bd[i]=playerChar; const s=minimax(bd,false); bd[i]=''; if(s>best){ best=s; bestMove=i; } } return bestMove; }
+  function minimax(bd,isMax){ const w=winnerForMinimax(bd); if(w==='O') return 10; if(w==='X') return -10; if(bd.every(v=>v!=='')) return 0; if(isMax){ let best=-Infinity; for(let i=0;i<9;i++){ if(bd[i]===''){ bd[i]='O'; best=Math.max(best,minimax(bd,false)); bd[i]=''; }} return best; } else { let best=Infinity; for(let i=0;i<9;i++){ if(bd[i]===''){ bd[i]='X'; best=Math.min(best,minimax(bd,true)); bd[i]=''; }} return best; } }
+  function winnerForMinimax(bd){ const W=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]; for(const [a,b,c] of W){ if(bd[a] && bd[a]===bd[b] && bd[a]===bd[c]) return bd[a]; } return null; }
+
+  // Restart: choose who starts via confirm (simple)
+  ticRestartBtn.addEventListener('click', ()=>{
+    const ok = confirm('Restart: OK => Player (X) starts, Cancel => Opponent (O) starts');
+    starter = ok ? 'X' : 'O';
+    // ensure form hidden and bg running
+    if(!bgAnim){ initBg(); animateBg(); }
+    startGame();
+  });
+
+  // Back to Menu: stop bg and show form again; reset form display to block
+  ticBackMenu.addEventListener('click', ()=>{
+    ticGameArea.classList.add('hidden');
+    ticForm.style.display = 'flex';
+    stopBg();
+  });
+
+})(); // end tic
+
+/* =========================
+  BATTLE DEFENDER (fixed)
+  ========================= */
+(() => {
+  const bdStart = document.getElementById('bdStart'), bdReset = document.getElementById('bdReset');
+  const bdName = document.getElementById('bdName'), bdAge = document.getElementById('bdAge'), bdType = document.getElementById('bdType'), bdPlatform = document.getElementById('bdPlatform');
+  const bdErr = document.getElementById('bdErr'), bdForm = document.getElementById('bdForm'), bdArea = document.getElementById('bdArea');
+  const bdCanvas = document.getElementById('bdCanvas'), bdCtx = bdCanvas.getContext('2d');
+  const bdNameShow = document.getElementById('bdNameShow'), bdScoreEl = document.getElementById('bdScore'), bdHealthEl = document.getElementById('bdHealth'), bdLevelEl = document.getElementById('bdLevel');
+  const bdPause = document.getElementById('bdPause'), bdRestartBtn = document.getElementById('bdRestartBtn'), bdBackMenu = document.getElementById('bdBackMenu');
+  const mbUp = document.getElementById('mbUp'), mbDown = document.getElementById('mbDown'), mbLeft = document.getElementById('mbLeft'), mbRight = document.getElementById('mbRight');
+  const mbShoot = document.getElementById('mbShoot'), mbTeamShoot = document.getElementById('mbTeamShoot'), bdMobileControls = document.getElementById('bdMobileControls');
+
+  // state
+  let cfgName='', cfgAge=0, cfgType='', cfgPlatform='pc';
+  let player=null, teammates=[], enemies=[], playerBullets=[], clouds=[];
+  let intervalId=null, paused=false, score=0, health=100, level=1, spawnTimer=0;
+  let overlay=[];
+
+  function validateBdForm(){ const name = bdName.value.trim(); const age = parseInt(bdAge.value,10); const type = bdType.value; const platform = bdPlatform.value; if(!name||!type||!platform||isNaN(age)) return false; if(age < 6) return false; return true; }
+
+  bdStart.addEventListener('click', ()=>{
+    bdErr.classList.add('hidden');
+    if(!validateBdForm()){ bdErr.classList.remove('hidden'); bdErr.textContent='Please fill full form first (and age ≥ 6).'; return; }
+    cfgName = bdName.value.trim(); cfgAge = parseInt(bdAge.value,10); cfgType = bdType.value; cfgPlatform = bdPlatform.value;
+    // hide form and start
+    bdForm.style.display = 'none';
+    bdArea.classList.remove('hidden');
+    startBattle();
+  });
+
+  bdReset.addEventListener('click', ()=>{ bdName.value=''; bdAge.value=''; bdType.value=''; bdPlatform.value='pc'; bdErr.classList.add('hidden'); });
+
+  bdPause.addEventListener('click', ()=>{ paused = !paused; bdPause.textContent = paused ? 'Resume' : 'Pause'; });
+  bdRestartBtn.addEventListener('click', ()=>{ resetBattle(); });
+  bdBackMenu.addEventListener('click', ()=>{ stopBattle(); bdArea.classList.add('hidden'); bdForm.style.display='flex'; });
+
+  // mobile controls binding (touch + mouse)
+  function bindMobile(){
+    function safeAdjust(dx,dy){ if(!player) return; player.x += dx; player.y += dy; if(player.x < 2) player.x = 2; if(player.y < 2) player.y = 2; if(player.x > bdCanvas.width - player.w - 2) player.x = bdCanvas.width - player.w - 2; if(player.y > bdCanvas.height - player.h - 2) player.y = bdCanvas.height - player.h - 2; }
+    mbUp.addEventListener('touchstart', ()=> safeAdjust(0, cfgPlatform==='mobile'?-18:-12)); mbDown.addEventListener('touchstart', ()=> safeAdjust(0, cfgPlatform==='mobile'?18:12));
+    mbLeft.addEventListener('touchstart', ()=> safeAdjust(cfgPlatform==='mobile'?-18:-12,0)); mbRight.addEventListener('touchstart', ()=> safeAdjust(cfgPlatform==='mobile'?18:12,0));
+    mbShoot.addEventListener('touchstart', ()=> shootPlayer()); mbTeamShoot.addEventListener('touchstart', ()=> teammates.forEach(t=>tmShoot(t)));
+    mbUp.addEventListener('mousedown', ()=> safeAdjust(0,-12)); mbDown.addEventListener('mousedown', ()=> safeAdjust(0,12));
+    mbLeft.addEventListener('mousedown', ()=> safeAdjust(-12,0)); mbRight.addEventListener('mousedown', ()=> safeAdjust(12,0));
+    mbShoot.addEventListener('mousedown', ()=> shootPlayer()); mbTeamShoot.addEventListener('mousedown', ()=> teammates.forEach(t=>tmShoot(t)));
+  }
+  bindMobile();
+
+  // keyboard handling — PREVENT page scroll for arrows
+  const keys = {};
+  function kd(e){
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key) || e.code === 'Space') e.preventDefault();
+    keys[e.key] = true;
+    if(e.code === 'Space'){ shootPlayer(); }
+    if(e.key === 'e' || e.key === 'E'){ teammates.forEach(t=>tmShoot(t)); }
+  }
+  function ku(e){ keys[e.key] = false; }
+  window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
+
+  // startBattle / loop / stop
+  function startBattle(){
+    if(cfgPlatform === 'mobile'){ bdCanvas.width = 360; bdCanvas.height = 260; bdMobileControls.classList.remove('hidden'); } else { bdCanvas.width = 820; bdCanvas.height = 360; bdMobileControls.classList.add('hidden'); }
+    player = { x: bdCanvas.width/2 - 12, y: bdCanvas.height - 70, w:20, h:20, speed:6, cooldown:0 };
+    teammates = [{ x: player.x-60, y: player.y, w:18, h:18, alive:true, cooldown:0 }, { x: player.x+60, y: player.y, w:18, h:18, alive:true, cooldown:0 }];
+    enemies=[]; playerBullets=[]; clouds = initClouds(bdCanvas.width, bdCanvas.height); initOverlay(bdCanvas.width, bdCanvas.height);
+    score = 0; health = 100; level = 1; spawnTimer = 0; paused = false;
+    bdNameShow.textContent = cfgName; bdScoreEl.textContent = score; bdHealthEl.textContent = health; bdLevelEl.textContent = level;
+    if(intervalId) clearInterval(intervalId);
+    intervalId = setInterval(loop, 33);
+  }
+
+  function stopBattle(){ if(intervalId) clearInterval(intervalId); intervalId=null; }
+  function resetBattle(){ stopBattle(); startBattle(); }
+
+  function initClouds(w,h){ const a=[]; for(let i=0;i<6;i++) a.push({ x: Math.random()*w, y: Math.random()*h*0.45, size:24+Math.random()*48, speed:0.2+Math.random()*0.7 }); return a; }
+  function initOverlay(w,h){ overlay=[]; for(let i=0;i<12;i++) overlay.push({ type: Math.random()>0.5?'X':'O', x: Math.random()*w, y: Math.random()*h*0.5, size: 12 + Math.random()*28, vx:(Math.random()-0.5)*0.3, vy:(Math.random()-0.2)*0.2, rot:Math.random()*Math.PI*2, vr:(Math.random()-0.5)*0.02 }); }
+
+  function spawnEnemy(){ const ex = Math.random()*(bdCanvas.width-40)+10; const ey = -20; const ew=14+Math.random()*16; const sp=1.5+Math.random()*(0.9+level*0.03); enemies.push({x:ex,y:ey,w:ew,h:ew,hp:1+Math.floor(level/8),speed:sp}); }
+
+  function shootPlayer(){ if(!player) return; const now=Date.now(); if(player.cooldown && now - player.cooldown < 180) return; player.cooldown = now; playerBullets.push({ x: player.x+player.w/2-3, y: player.y-6, w:6, h:8, sp:12 }); }
+  function tmShoot(tm){ if(!tm.alive) return; if(tm.cooldown && Date.now() - tm.cooldown < 420) return; tm.cooldown = Date.now(); playerBullets.push({ x: tm.x + tm.w/2 -3, y: tm.y -6, w:5, h:7, sp:10 }); }
+
+  function rectInt(a,b){ return a.x < b.x + b.w && a.x + (a.w||0) > b.x && a.y < b.y + b.h && a.y + (a.h||0) > b.y; }
+  function levelUp(){ level++; health = Math.min(100, health + 6); }
+
+  function loop(){
+    if(paused) return;
+    drawBattleBg();
+    // movement by keyboard
+    if(keys['ArrowUp'] && player.y > 6) player.y -= player.speed;
+    if(keys['ArrowDown'] && player.y < bdCanvas.height - player.h - 4) player.y += player.speed;
+    if(keys['ArrowLeft'] && player.x > 4) player.x -= player.speed;
+    if(keys['ArrowRight'] && player.x < bdCanvas.width - player.w - 4) player.x += player.speed;
+
+    // bullets
+    for(let i=playerBullets.length-1;i>=0;i--){
+      const b = playerBullets[i]; b.y -= b.sp; bdCtx.fillStyle='#ffff66'; bdCtx.fillRect(b.x,b.y,b.w,b.h);
+      for(let j=enemies.length-1;j>=0;j--){
+        if(rectInt(b,enemies[j])){ enemies[j].hp -= 1; playerBullets.splice(i,1); if(enemies[j].hp <= 0){ enemies.splice(j,1); score += 10; if(score % 100 === 0) levelUp(); } break; }
+      }
+      if(b.y < -10) playerBullets.splice(i,1);
+    }
+
+    spawnTimer++; if(spawnTimer > Math.max(20, 110 - level*1.2)){ spawnEnemy(); spawnTimer = 0; }
+
+    // enemies
+    for(let i=enemies.length-1;i>=0;i--){
+      const e = enemies[i]; e.y += e.speed;
+      let died=false;
+      for(let t of teammates){ if(t.alive && rectInt(e,t)){ t.alive=false; enemies.splice(i,1); died=true; break; } }
+      if(died) continue;
+      if(rectInt(e, player)){ enemies.splice(i,1); health -= 18; if(health <= 0){ stopBattle(); setTimeout(()=> alert(`Game Over! Score: ${score} | Level: ${level}`),50); return; } } else { bdCtx.fillStyle='#ff4444'; bdCtx.fillRect(e.x,e.y,e.w,e.h); }
+      if(e.y > bdCanvas.height + 40) enemies.splice(i,1);
+    }
+
+    // teammates
+    for(let i=0;i<teammates.length;i++){
+      const t = teammates[i]; const targetX = player.x + (i===0 ? -60 : 60);
+      t.x += (targetX - t.x) * 0.16; t.y = player.y;
+      if(t.alive){
+        bdCtx.fillStyle = '#ffa500'; bdCtx.fillRect(t.x,t.y,t.w,t.h);
+        for(let e of enemies){ if(Math.abs(e.x - t.x) < 80 && e.y < t.y && (!t.cooldown || Date.now() - t.cooldown > 600)){ tmShoot(t); break; } }
+      } else { bdCtx.fillStyle = '#222'; bdCtx.fillRect(t.x,t.y,t.w,t.h); }
+    }
+
+    // draw player
+    bdCtx.fillStyle = '#2b6fff'; bdCtx.fillRect(player.x,player.y,player.w,player.h);
+
+    if(level >= 15) for(let t of teammates) if(!t.alive) t.alive = true;
+
+    bdScoreEl.textContent = score; bdHealthEl.textContent = health; bdLevelEl.textContent = level;
+  }
+
+  // draw battle background (no TicTac glow here)
+  let cloudsArr = [];
+  function drawBattleBg(){
+    bdCtx.clearRect(0,0,bdCanvas.width,bdCanvas.height);
+    const sky = bdCtx.createLinearGradient(0,0,0,bdCanvas.height); sky.addColorStop(0,'#87CEFA'); sky.addColorStop(1,'#4facfe');
+    bdCtx.fillStyle = sky; bdCtx.fillRect(0,0,bdCanvas.width,bdCanvas.height);
+    if(!cloudsArr.length) cloudsArr = initClouds(bdCanvas.width, bdCanvas.height);
+    for(let c of cloudsArr){ c.x += c.speed; if(c.x > bdCanvas.width + 80) c.x = -120; bdCtx.fillStyle='rgba(255,255,255,0.85)'; bdCtx.beginPath(); bdCtx.ellipse(c.x,c.y,c.size,c.size*0.6,0,0,Math.PI*2); bdCtx.fill(); }
+    // trees
+    for(let i=0;i<6;i++){ const tx = (i*bdCanvas.width/6) + (Math.sin((Date.now()/1000)+i)*10); bdCtx.fillStyle='#3b2f1b'; bdCtx.fillRect(tx, bdCanvas.height-80, 12, 50); bdCtx.fillStyle='#1b7a2f'; bdCtx.beginPath(); bdCtx.ellipse(tx+6, bdCanvas.height-100, 36, 28, 0,0,Math.PI*2); bdCtx.fill(); }
+    // ground
+    bdCtx.fillStyle = '#0a7a3b'; bdCtx.fillRect(0, bdCanvas.height-40, bdCanvas.width, 40);
+    // subtle overlay (very faint)
+    if(!overlay.length) initOverlay(bdCanvas.width, bdCanvas.height);
+    for(let it of overlay){ it.x += it.vx; it.y += it.vy; it.rot += it.vr; if(it.x < -60) it.x = bdCanvas.width + 40; if(it.x > bdCanvas.width + 60) it.x = -40; bdCtx.save(); bdCtx.translate(it.x,it.y); bdCtx.rotate(it.rot); if(it.type === 'X'){ bdCtx.strokeStyle='rgba(255,80,80,0.06)'; bdCtx.lineWidth=Math.max(1,it.size*0.04); bdCtx.beginPath(); bdCtx.moveTo(-it.size/2,-it.size/2); bdCtx.lineTo(it.size/2,it.size/2); bdCtx.moveTo(it.size/2,-it.size/2); bdCtx.lineTo(-it.size/2,it.size/2); bdCtx.stroke(); } else { bdCtx.strokeStyle='rgba(100,255,120,0.06)'; bdCtx.lineWidth=Math.max(1,it.size*0.04); bdCtx.beginPath(); bdCtx.arc(0,0,it.size/2,0,Math.PI*2); bdCtx.stroke(); } bdCtx.restore(); }
+  }
+
+})(); // end battle
+
+// final: ensure arrow keys never scroll the page when games are active
+window.addEventListener('keydown', function(e){
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key) || e.code === 'Space'){ e.preventDefault(); }
+}, {passive:false});
+
+</script>
+</body>
+</html>
